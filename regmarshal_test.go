@@ -2,7 +2,9 @@ package regmarshal
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
+	"time"
 
 	"golang.org/x/sys/windows/registry"
 )
@@ -25,7 +27,7 @@ const RegistryRootKey = registry.CURRENT_USER
 const RegistryRootPath = "SOFTWARE\\AthaIO\\Regmarshal\\"
 
 func TestMarshal(t *testing.T) {
-	TestRegistryPAth := RegistryRootPath + t.Name()
+	TestRegistryPAth := fmt.Sprintf("%s%s_%d", RegistryRootPath, t.Name(), time.Now().Unix())
 
 	datum := exampleDatum()
 
@@ -77,7 +79,7 @@ func TestMarshal(t *testing.T) {
 }
 
 func TestUnmarshal(t *testing.T) {
-	TestRegistryPath := RegistryRootPath + t.Name()
+	TestRegistryPath := fmt.Sprintf("%s%s_%d", RegistryRootPath, t.Name(), time.Now().Unix())
 
 	datum := exampleDatum()
 
@@ -107,6 +109,55 @@ func TestUnmarshal(t *testing.T) {
 
 	if readDatum.Number != datum.Number {
 		t.Errorf("registry: %d; want: %d", readDatum.Number, datum.Number)
+	}
+
+	if bytes.Compare(readDatum.Binary, datum.Binary) != 0 {
+		t.Errorf("registry: %v; want: %v", readDatum.Binary, datum.Binary)
+	}
+
+	key.Close()
+
+	err = registry.DeleteKey(RegistryRootKey, TestRegistryPath)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+
+func TestUnmarshalMissingValues(t *testing.T) {
+	TestRegistryPath := fmt.Sprintf("%s%s_%d", RegistryRootPath, t.Name(), time.Now().Unix())
+
+	datum := exampleDatum()
+	datum.Text = ""
+	datum.Number = 0
+	datum.Binary = []byte{}
+
+	_, _, err := registry.CreateKey(RegistryRootKey, TestRegistryPath, registry.ALL_ACCESS)
+	if err != nil {
+		t.Error(err)
+	}
+
+	key, err := registry.OpenKey(RegistryRootKey, TestRegistryPath, registry.ALL_ACCESS)
+	if err != nil {
+		t.Error(err)
+	}
+
+	readDatum := Datum{}
+	err = Unmarshal(RegistryRootKey, TestRegistryPath, &readDatum)
+	if err != nil {
+		t.Error(err)
+	}
+
+	if readDatum.Text != datum.Text {
+		t.Errorf("registry: %s; want: %s", readDatum.Text, datum.Text)
+	}
+
+	if readDatum.Number != datum.Number {
+		t.Errorf("registry: %d; want: %d", readDatum.Number, datum.Number)
+	}
+
+	if bytes.Compare(readDatum.Binary, datum.Binary) != 0 {
+		t.Errorf("registry: %v; want: %v", readDatum.Binary, datum.Binary)
 	}
 
 	key.Close()

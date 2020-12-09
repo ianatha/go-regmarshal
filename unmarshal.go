@@ -42,23 +42,32 @@ func unmarshalField(regkey registry.Key, typeField reflect.StructField, field re
 	case reflect.String:
 		v, _, err := regkey.GetStringValue(registryPath(typeField))
 		if err != nil {
-			return err
+			if err != registry.ErrNotExist {
+				return err
+			}
+		} else {
+			field.SetString(v)
 		}
-		field.SetString(v)
 	case reflect.Int:
 		v, _, err := regkey.GetIntegerValue(registryPath(typeField))
 		if err != nil {
-			return err
+			if err != registry.ErrNotExist {
+				return err
+			}
+		} else {
+			field.SetInt(int64(v))
 		}
-		field.SetInt(int64(v))
 	case reflect.Slice:
 		// TODO check its a slice of byte
 
 		v, _, err := regkey.GetBinaryValue(registryPath(typeField))
 		if err != nil {
-			return err
+			if err != registry.ErrNotExist {
+				return err
+			}
+		} else {
+			field.SetBytes(v)
 		}
-		field.SetBytes(v)
 	default:
 		return errors.Errorf("unexpected type: %s", field.Kind().String())
 	}
